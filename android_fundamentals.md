@@ -289,8 +289,83 @@ Key points:
 
 ## Application class, process & app lifecycle
 
-- Application.onCreate() is called when the process for the application is created. Use for singletons or early initialization (DI, analytics, logging), but keep work minimal to avoid slow app starts.
-- The Android OS may kill an app process when it's in the background. Always save important state to persistent storage (Room, DataStore) or via onSaveInstanceState for UI state.
+What it is:
+- The Application class is instantiated when the app process is created. It's a singleton tied to the process and provides an Application Context.
+- Application.onCreate() is called on the main thread during process start. Use it for light-weight initializations (DI wiring, lightweight logging init, registering lifecycle callbacks) and defer heavy work.
+
+Process model:
+- Android apps run in a Linux process; by default all components (activities, services, broadcast receivers, providers) run in the same process.
+- The system may kill the process to reclaim memory; when that happens no lifecycle callbacks are delivered — the process simply dies. Rely on persistent storage and process-agnostic recovery.
+- You can opt-in to run specific components in separate processes via android:process in the manifest. Use this sparingly and test IPC, because separate processes don't share memory.
+
+Initialization order:
+- ContentProviders registered in the manifest are created before Application.onCreate(); avoid heavy work or long blocking calls in provider init.
+- Application.onCreate() runs after providers are created, so prefer lazily initializing heavy subsystems (e.g., using lazy { } or background workers).
+
+Common lifecycle callbacks & signals:
+- onCreate() — process-level entry point. Keep short.
+- onTerminate() — only for emulators and should not be relied on in production.
+- onConfigurationChanged() — if you opt out of configuration changes in manifest for Application (rare).
+- Component callbacks: registerActivityLifecycleCallbacks, registerComponentCallbacks are available to observe lower-level lifecycle events.
+- onTrimMemory(level) / onLowMemory() — the system informs you when memory is low; release caches/resources accordingly.
+
+Best practices:
+- Avoid blocking the main thread during startup. Defer initialization with lazy delegates, WorkManager, or background coroutines.
+- Use dependency injection (Hilt/ Dagger) to centralize wiring, but keep actual heavy work off the UI thread.
+- Use WorkManager for guaranteed background initialization tasks that can be deferred and survive process death.
+- Use applicationContext for singletons to avoid leaking Activity contexts.
+- Avoid storing references to Activities, Views, or Contexts in static singletons.
+
+Handling process death and restore:
+- Process death differs from configuration change. When the system kills the process for memory, Activities are recreated later without guarantees for non-persistent state.
+- Persist important state to Room, DataStore, or savedInstanceState for quick UI restoration.
+- Use SavedStateHandle in ViewModels and persist long-lived state in local storage.
+
+Example (lightweight Application wiring and deferred init):
+
+```kotlin
+class MyApplication : Application() {
+
+    // lazy init ensures no work is done until actually needed
+    val analytics by lazy { Analytics.init(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+
+        // register lifecycle callbacks for simple process-wide hooks
+        registerActivityLifecycleCallbacks(MyActivityLifecycleListener())
+
+        // Initialize DI container quickly (no heavy work here)
+        AppComponent.initialize(this)
+
+        // Defer heavy work to background so startup isn't blocked
+        CoroutineScope(Dispatchers.Default).launch {
+            // e.g. migrate cached DB, warm up caches, start WorkManager jobs
+            Repository.warmUpCache()
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_MODERATE) {
+            // release caches / reduce memory footprint
+            CacheManager.clearNonCriticalCaches()
+        }
+    }
+}
+```
+
+Debugging & diagnosis:
+- Use logcat and Process.is64Bit() / ActivityManager to inspect processes.
+- Use StrictMode to catch accidental disk/network operations on the main thread during development.
+- Profile app cold start/warm start using Android Studio profiler and traceview.
+
+When to use separate processes:
+- Only for isolating memory- or security-sensitive work (e.g., crash isolations, renderers). Separate processes increase complexity (IPC, testing) and should be a last resort.
+
+Notes:
+- Application.onCreate is executed once per process. In apps that use multiple processes, each process will create its own Application instance.
+- Keep startup fast: Android reports perceived app start time; long startup hurts user experience.
 
 ---
 
@@ -345,6 +420,8 @@ lifecycleScope.launchWhenStarted {
 }
 ```
 
+See a practical, more complete example in this repository: [view_mode_example.kt](code_examples/view_mode_example.kt)
+
 ---
 
 ## WorkManager (recommended for background jobs)
@@ -365,6 +442,8 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
 val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>().build()
 WorkManager.getInstance(context).enqueue(uploadRequest)
 ```
+
+See a practical, more complete example in this repository: [worker_manager.kt](code_examples/worker_manager.kt)
 
 ---
 
