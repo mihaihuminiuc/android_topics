@@ -23,7 +23,7 @@ This document provides a practical and detailed overview of core Android fundame
 ## Activity
 
 What it is:
-- An Activity is a single, focused thing that the user can do. It represents a screen with a UI.
+- An Activity is a single, focused thing that the user can interact with. It represents a screen with a UI.
 
 Lifecycle (key callbacks):
 - onCreate(Bundle?) — initialize UI, create components.
