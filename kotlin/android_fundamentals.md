@@ -23,7 +23,33 @@ This document provides a practical and detailed overview of core Android fundame
 ## Activity
 
 What it is:
-- An Activity is a single, focused thing that the user can interact with. It represents a screen with a UI.
+- An Activity is a single, focused thing the user can interact with — usually one screen with a UI. It is an Android component the system instantiates and drives through a well-defined lifecycle.
+
+Core responsibilities:
+- Inflate and manage the UI (setContentView / view binding) and handle user input on that screen.
+- Coordinate navigation and transitions (startActivity, finish, fragments, Navigation component).
+- Persist small transient UI state via `onSaveInstanceState` and hold longer-lived UI state in ViewModels or persistent storage.
+- Manage resources tied to visibility (register/unregister listeners, start/stop animations).
+
+High-level lifecycle (summary):
+- `onCreate()` → `onStart()` → `onResume()` (activity is visible and interactive)
+- `onPause()` → `onStop()` → `onDestroy()` (activity is leaving foreground or being destroyed)
+- Use `onSaveInstanceState()` to save short-lived UI state; use `ViewModel` for configuration-surviving state.
+
+When to use an Activity:
+- Represent a distinct user task or screen (settings screen, conversation screen, media player UI).
+- Host fragments for modular UI. For many modern apps prefer a single-activity architecture with the Navigation component to simplify back stack handling.
+
+Best practices:
+- Keep Activities thin: move business logic to ViewModels or UseCase classes.
+- Avoid heavy/blocking work in `onCreate()`; defer with background threads or WorkManager.
+- Use `registerForActivityResult` instead of deprecated `startActivityForResult`.
+- Use `applicationContext` for app singletons; avoid leaking Activity context.
+
+Common pitfalls:
+- Holding strong references to Activity or Views in static singletons → memory leaks.
+- Performing network or disk IO on the main thread → jank / ANR.
+- Committing fragment transactions after `onSaveInstanceState()` → IllegalStateException or state loss; prefer safe commit timing.
 
 Lifecycle (key callbacks):
 - onCreate(Bundle?) — initialize UI, create components.
