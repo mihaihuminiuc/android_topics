@@ -24,12 +24,43 @@ A practical, Java-focused primer covering Activities, Fragments, Intents, Servic
 ## Activity
 
 What it is:
-- An Activity represents a single screen with a UI.
+- An Activity is a single, focused thing the user can interact with — usually one screen with a UI. It is an Android component the system instantiates and drives through a well-defined lifecycle.
 
-Why it matters (real world):
-- It’s the entry point for most user interactions. Knowing lifecycle prevents leaks, ANRs, and state loss (e.g., rotation).
+Core responsibilities:
+- Inflate and manage the UI (setContentView / view binding) and handle user input on that screen.
+- Coordinate navigation and transitions (startActivity, finish, fragments, Navigation component).
+- Persist small transient UI state via `onSaveInstanceState` and hold longer-lived UI state in ViewModels or persistent storage.
+- Manage resources tied to visibility (register/unregister listeners, start/stop animations).
 
-Lifecycle (key callbacks): onCreate, onStart, onResume, onPause, onStop, onDestroy, onRestart, onSaveInstanceState.
+High-level lifecycle (summary):
+- `onCreate()` → `onStart()` → `onResume()` (activity is visible and interactive)
+- `onPause()` → `onStop()` → `onDestroy()` (activity is leaving foreground or being destroyed)
+- Use `onSaveInstanceState()` to save short-lived UI state; use `ViewModel` for configuration-surviving state.
+
+When to use an Activity:
+- Represent a distinct user task or screen (settings screen, conversation screen, media player UI).
+- Host fragments for modular UI. For many modern apps prefer a single-activity architecture with the Navigation component to simplify back stack handling.
+
+Best practices:
+- Keep Activities thin: move business logic to ViewModels or UseCase classes.
+- Avoid heavy/blocking work in `onCreate()`; defer with background threads or WorkManager.
+- Use `registerForActivityResult` instead of deprecated `startActivityForResult`.
+- Use `applicationContext` for app singletons; avoid leaking Activity context.
+
+Common pitfalls:
+- Holding strong references to Activity or Views in static singletons → memory leaks.
+- Performing network or disk IO on the main thread → jank / ANR.
+- Committing fragment transactions after `onSaveInstanceState()` → IllegalStateException or state loss; prefer safe commit timing.
+
+Lifecycle (key callbacks):
+- onCreate(Bundle?) — initialize UI, create components.
+- onStart() — Activity becoming visible.
+- onResume() — Activity interacting with the user (foreground).
+- onPause() — Partial obscuring; commit transient changes.
+- onStop() — Fully hidden; release resources that are not needed while stopped.
+- onDestroy() — Final cleanup before the Activity is destroyed.
+- onRestart() — Called after onStop before onStart when coming back.
+- onSaveInstanceState(Bundle) — Save small UI state before recreation.
 
 Example Activity (launch another Activity and save/restore small state):
 
