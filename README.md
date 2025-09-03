@@ -15,8 +15,7 @@ This repository is designed to refresh or learn the basics of Android Developmen
         - Java version: [android_architecture_components.md](java/android_architecture_components.md)
 
 3. **Jetpack Compose**
-    - Composables, State Management, Modifier, etc. 
-        - Kotlin version: [jetpack_compose.md](kotlin/jetpack_compose.md)
+    - Composables, State Management, Modifier, etc. [jetpack_compose.md](kotlin/jetpack_compose.md)
 
 4. **Kotlin for Android**
     - Coroutines, Extensions, Sealed Classes, etc. [kotlin_for_android.md](kotlin/kotlin_for_android.md)
